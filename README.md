@@ -1,6 +1,6 @@
 # Laboratorios interactivos · Métodos Numéricos (SCC-1017)
 
-TecNM Campus Ensenada · Ingeniería en Sistemas Computacionales · 2026-2 · Dr. T. Huerta
+TecNM Campus Ensenada · Ingeniería en Sistemas Computacionales · Dr. T. Huerta
 
 Sitio estático publicado con GitHub Pages: **https://thuerta2398.github.io/metodos-numericos-labs/**
 
