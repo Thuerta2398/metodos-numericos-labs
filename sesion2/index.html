@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lab U4 · Romberg y Gauss</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fira+Sans:wght@400;500;600;700&family=Fira+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="../assets/lab.css">
+</head>
+<body>
+<header>
+  <div class="hwrap">
+    <div class="eyebrow">TecNM Campus Ensenada · Métodos Numéricos SCC-1017 · Unidad 4, Sesión 2</div>
+    <h1>Construye Romberg, la cuadratura de Gauss y la adaptativa</h1>
+    <div class="ibar" id="ibar" hidden></div>
+    <div class="rule"></div>
+    <nav id="nav" role="tablist"></nav>
+  </div>
+</header>
+<main id="main"></main>
+<footer>
+  <p><b>Referencias</b></p>
+  <p>Burden, R. L., &amp; Faires, J. D. (2011). <i>Numerical analysis</i> (9th ed.). Brooks/Cole, Cengage Learning. (Secc. 4.5, integración de Romberg; secc. 4.6, cuadratura adaptativa; secc. 4.7, cuadratura gaussiana).</p>
+  <p>Nakamura, S. (1992). <i>Métodos numéricos aplicados con software</i>. Prentice Hall Hispanoamericana.</p>
+  <p>Parsons, D., &amp; Haden, P. (2006). Parson's programming puzzles: A fun and effective learning tool for first programming courses. En <i>Proceedings of the 8th Australasian Conference on Computing Education</i> (Vol. 52, pp. 157–163). Australian Computer Society.</p>
+</footer>
+
+<script src="../assets/integridad.js"></script>
+<script>
+"use strict";
+/* ---------- numérica ---------- */
+function rombergJS(f, a, b, M) {
+  const R = [...Array(M)].map(() => Array(M).fill(null)); let h = b - a; R[0][0] = 0.5 * h * (f(a) + f(b));
+  for (let k = 1; k < M; k++) {
+    let s = 0; for (let i = 1; i <= 2 ** (k - 1); i++) s += f(a + (i - 0.5) * h);
+    R[k][0] = 0.5 * (R[k - 1][0] + h * s); h /= 2;
+    for (let j = 1; j <= k; j++) R[k][j] = R[k][j - 1] + (R[k][j - 1] - R[k - 1][j - 1]) / (4 ** j - 1);
+  } return R;
+}
+const GL = {
+  2: [[-0.5773502691896257, 1], [0.5773502691896257, 1]],
+  3: [[-0.7745966692414834, 0.5555555555555556], [0, 0.8888888888888888], [0.7745966692414834, 0.5555555555555556]],
+  4: [[-0.8611363115940526, 0.3478548451374538], [-0.3399810435848563, 0.6521451548625461], [0.3399810435848563, 0.6521451548625461], [0.8611363115940526, 0.3478548451374538]],
+  5: [[-0.906179845938664, 0.2369268850561891], [-0.5384693101056831, 0.4786286704993665], [0, 0.5688888888888889], [0.5384693101056831, 0.4786286704993665], [0.906179845938664, 0.2369268850561891]],
+  6: [[-0.9324695142031521, 0.1713244923791704], [-0.6612093864662645, 0.3607615730481386], [-0.2386191860831969, 0.4679139345726910], [0.2386191860831969, 0.4679139345726910], [0.6612093864662645, 0.3607615730481386], [0.9324695142031521, 0.1713244923791704]]
+};
+const gaussJS = (f, a, b, n) => 0.5 * (b - a) * GL[n].reduce((s, [t, c]) => s + c * f(0.5 * ((b - a) * t + (b + a))), 0);
+const simp1 = (f, a, b) => { const h = (b - a) / 2; return h / 3 * (f(a) + 4 * f(a + h) + f(b)); };
+function adaptJS(f, a, b, tol, lvl = 0, out = []) {
+  const c = 0.5 * (a + b), S1 = simp1(f, a, b), S2 = simp1(f, a, c) + simp1(f, c, b);
+  if (Math.abs(S2 - S1) < 15 * tol || lvl >= 50) { out.push([a, b]); return S2 + (S2 - S1) / 15; }
+  return adaptJS(f, a, c, tol / 2, lvl + 1, out) + adaptJS(f, c, b, tol / 2, lvl + 1, out);
+}
+const fC = x => x * Math.exp(x), EX_C = Math.E ** 2 + 1;
+const fL = x => Math.log(x), EX_L = 3 * Math.log(3) - 2;
+const V = [0, 4.8, 9.1, 12.7, 15.6, 17.9];
+
+const PTXP = [1.2, 1.7, 2.5, 2.9, 1.05, 0.6].map(x => ({ x }));
+const PTDJ = [{ d: 0.3, j: 1 }, { d: -1.2, j: 2 }, { d: 2.5, j: 3 }, { d: 0.07, j: 4 }];
+const PTTAB = [{ t: 0.3, a: 1, b: 3 }, { t: -0.77, a: 0, b: 2 }, { t: 0.9, a: -1.5, b: 4 }, { t: -0.2, a: 2, b: 2.6 }];
+const PTAB = [{ a: 1, b: 3 }, { a: 0, b: 2 }, { a: -1.5, b: 4 }, { a: 2, b: 2.6 }];
+const PTTOL = [{ tol: 1e-3 }, { tol: 0.2 }, { tol: 7 }];
+const PTS = [{ S1: 1.2, S2: 1.5 }, { S1: -0.4, S2: 0.9 }, { S1: 3, S2: 2.1 }];
+const romTable = (R, ex) => { const M = R.length; let h = '<table class="it"><thead><tr><th>k</th>' + [...Array(M)].map((_, j) => `<th>j=${j + 1}</th>`).join('') + '</tr></thead><tbody>';
+  for (let k = 0; k < M; k++) { h += `<tr><td>${k + 1}</td>`; for (let j = 0; j < M; j++) h += `<td>${R[k][j] == null ? '' : (j === k ? '<b>' + R[k][j].toFixed(7) + '</b>' : R[k][j].toFixed(7))}</td>`; h += '</tr>'; }
+  return h + '</tbody></table>' + (ex != null ? `<p class="small">Diagonal: error de R₅,₅ = ${sci(Math.abs(R[M - 1][M - 1] - ex))} con ${2 ** (M - 1) + 1} evaluaciones de f.</p>` : ''); };
+
+window.LAB = {
+  key: 'mn_u4s2_lab_v1', labId: 'U4S2', filePrefix: 'U4S2_Lab',
+  unidadTxt: 'UNIDAD 4, SESIÓN 2', consTitle: 'Romberg, Gauss y cuadratura adaptativa',
+  temas: 'Temas 4.3 a 4.4 de la carta descriptiva',
+  intro: 'Vas a armar el programa de Romberg y el de la cuadratura de Gauss-Legendre, y luego a completar las piezas clave de Romberg, Gauss y la cuadratura adaptativa para una integral nueva. Al final, un reto con datos de laboratorio.',
+  niveles: [['Nivel 1 · Rompecabezas', 'Ordena las líneas de Romberg (trapecio recursivo y extrapolación) y de Gauss-Legendre. Cuidado: hay líneas trampa.'],
+    ['Nivel 2 · Completa el código', 'Con ∫₁³ ln x dx, escribe la extrapolación de Romberg, el cambio de intervalo de Gauss y el criterio adaptativo.'],
+    ['Nivel 3 · Reto', 'Datos de velocidad con un número impar de subintervalos: decide qué método sirve y calcula la distancia.']],
+  /* ---------- Nivel 1 ---------- */
+  n1ref: '∫₀^π sen x dx = 2 · ∫₀² x·eˣ dx = e² + 1',
+  n1pre: ['import numpy as np', ''],
+  n1post: ['R = romberg(np.sin, 0, np.pi)', 'print(R[4, 4])      # 1.999999995', 'print(gauss_legendre(lambda x: x*np.exp(x), 0, 2, 3))   # 8.387800'],
+  n1done: 'Tu Romberg obtiene 2 con error 5.4×10⁻⁹ usando solo 17 evaluaciones de sen x, y tu Gauss con 3 nodos da 8.387800 para ∫₀² x·eˣ dx (error 1.3×10⁻³). Prueba en la gráfica cómo cae el error de Gauss al aumentar n.',
+  PZ: [
+    { id: 'p1', tag: '1 · Trapecio recursivo', titulo: 'Etapa 1 · Primera columna de Romberg',
+      enun: 'Cada renglón es el trapecio con el doble de subintervalos, <b>reutilizando</b> el anterior: <span class="mat">R[k,0] = ½·(R[k−1,0] + h·Σ f(puntos medios nuevos))</span>.',
+      lines: ['def romberg(f, a, b, M=5):', '    R = np.zeros((M, M))', '    h = b - a', '    R[0, 0] = 0.5 * h * (f(a) + f(b))', '    for k in range(1, M):', '        i = np.arange(1, 2**(k-1) + 1)', '        s = np.sum(f(a + (i - 0.5) * h))', '        R[k, 0] = 0.5 * (R[k-1, 0] + h * s)', '        h = h / 2'],
+      dis: [{ t: '        R[k, 0] = R[k-1, 0] + h * s', fb: 'Falta el promedio: el trapecio refinado es ½·(R anterior + h·s). Sin el ½ el valor casi se duplica en cada nivel.' },
+        { t: '        h = h * 2', fb: 'En cada nivel el paso se reduce a la mitad, no se duplica.' }],
+      pista: 'Tabla de ceros → paso inicial → trapecio simple en R[0,0] → for k → índices de los puntos medios nuevos → su suma → R[k,0] → reducir h.' },
+    { id: 'p2', tag: '2 · Extrapolación', titulo: 'Etapa 2 · Las columnas de extrapolación',
+      enun: 'Dentro del mismo <span class="mat">for k</span>, llena las columnas <span class="mat">j = 1 … k</span> con <span class="mat">R[k,j] = R[k,j−1] + (R[k,j−1] − R[k−1,j−1]) / (4ʲ − 1)</span> y al final devuelve la tabla.',
+      lines: ['        for j in range(1, k + 1):', '            d = R[k, j-1] - R[k-1, j-1]', '            R[k, j] = R[k, j-1] + d / (4**j - 1)', '    return R'],
+      dis: [{ t: '            R[k, j] = R[k, j-1] + d / (2**j - 1)', fb: 'El error del trapecio va en potencias pares de h; por eso el divisor es 4ʲ − 1, no 2ʲ − 1.' },
+        { t: '            d = R[k, j-1] - R[k, j-2]', fb: 'La diferencia es con el renglón anterior (k − 1) en la misma columna (j − 1).' },
+        { t: '        return R', fb: 'Con esa sangría el return queda dentro del for k y la función terminaría en el primer nivel.' }],
+      pista: 'for j → diferencia d → nueva entrada R[k, j] → y, ya fuera de los dos ciclos (4 espacios), return R.' },
+    { id: 'p3', tag: '3 · Gauss', titulo: 'Etapa 3 · Cuadratura de Gauss-Legendre',
+      enun: 'Toma nodos <span class="mat">t</span> y pesos <span class="mat">c</span> en [−1, 1], traslada los nodos con <span class="mat">x = [(b−a)t + (b+a)]/2</span> y multiplica la suma por <span class="mat">(b − a)/2</span>.',
+      lines: ['def gauss_legendre(f, a, b, n):', '    t, c = np.polynomial.legendre.leggauss(n)', '    x = 0.5 * ((b - a) * t + (b + a))', '    return 0.5 * (b - a) * np.dot(c, f(x))'],
+      dis: [{ t: '    x = (b - a) * t + (b + a)', fb: 'Falta dividir entre 2: con t = ±1 los nodos deben caer en a y b.' },
+        { t: '    return np.dot(c, f(x))', fb: 'Falta el factor (b − a)/2 del cambio de variable. Prueba rápida: con f ≡ 1 debe salir b − a.' }],
+      pista: 'Encabezado → nodos y pesos con leggauss → cambio de intervalo → return con el factor 0.5*(b − a).' }
+  ],
+  n1right(R) {
+    let h = '';
+    if (ok('p1')) {
+      const Rm = rombergJS(Math.sin, 0, Math.PI, 5);
+      if (!ok('p2')) Rm.forEach((r, k) => r.forEach((_, j) => { if (j > 0) r[j] = null; }));
+      h += `<div class="box"><h3>Salida de romberg(np.sin, 0, π) · exacto 2</h3><div class="in">${romTable(Rm, ok('p2') ? 2 : null)}${ok('p2') ? '' : '<p class="small">Primera columna: trapecio con 1, 2, 4, 8 y 16 subintervalos.</p>'}</div></div>`;
+    } else h += '<div class="box"><h3>Salida</h3><div class="in"><p class="small">Completa la etapa 1 para ver la primera columna de Romberg.</p></div></div>';
+    R.innerHTML = h;
+    if (ok('p3')) {
+      R.insertAdjacentHTML('beforeend', `<div class="plot"><svg id="g1"></svg><div class="plotcap"><span><i style="background:var(--c0)"></i>f(x) = x·eˣ</span><span id="gn"></span></div><div class="row" style="margin:4px 6px 6px" id="gb"></div></div>`);
+      const show = n => {
+        const P = mkPlot($('#g1'), { W: 420, H: 260, xmin: -0.1, xmax: 2.1, ymin: -1, ymax: 16, xt: [0, 0.5, 1, 1.5, 2], yt: [0, 5, 10, 15], xl: 'x' });
+        curve(P, fC, -0.1, 2.1, 's0');
+        GL[n].forEach(([t]) => { const x = t + 1; el('line', { x1: P.X(x), x2: P.X(x), y1: P.Y(0), y2: P.Y(fC(x)), class: 'tr' }, P.layer); el('circle', { cx: P.X(x), cy: P.Y(fC(x)), r: 4.5, class: 'ptr' }, P.layer); });
+        const v = gaussJS(fC, 0, 2, n); $('#gn').textContent = `n = ${n} nodos: ${fmt(v)}, error ${sci(Math.abs(v - EX_C))}`;
+      };
+      const gb = $('#gb'); [2, 3, 4, 5].forEach(n => { const b = document.createElement('button'); b.className = 'btn'; b.textContent = 'n = ' + n; b.onclick = () => show(n); gb.appendChild(b); });
+      show(3);
+    }
+  },
+  /* ---------- Nivel 2 ---------- */
+  n2ref: '∫₁³ ln x dx = 3 ln 3 − 2 ≈ 1.2958369',
+  HOLES: {
+    h1a: { w: 12, chk: s => checkExpr(s, e => Math.log(e.x), { vars: ['x'], pts: PTXP, miss: 'No coincide con ln x. En NumPy el logaritmo natural es np.log(x).' }) },
+    h2a: { w: 16, chk: s => { const r = checkExpr(s, e => e.d / (4 ** e.j - 1), { vars: ['d', 'j'], pts: PTDJ }); if (!r.ok && checkExpr(s, e => e.d / (2 ** e.j - 1), { vars: ['d', 'j'], pts: PTDJ }).ok) r.msg = 'El divisor es 4**j − 1: el error del trapecio va en potencias pares de h.'; return r; } },
+    h3a: { w: 24, chk: s => { const r = checkExpr(s, e => 0.5 * ((e.b - e.a) * e.t + (e.b + e.a)), { vars: ['t', 'a', 'b'], pts: PTTAB }); if (!r.ok && checkExpr(s, e => (e.b - e.a) * e.t + (e.b + e.a), { vars: ['t', 'a', 'b'], pts: PTTAB }).ok) r.msg = 'Falta dividir entre 2 (o multiplicar por 0.5).'; return r; } },
+    h4a: { w: 10, chk: s => checkExpr(s, e => (e.b - e.a) / 2, { vars: ['a', 'b'], pts: PTAB, miss: 'El factor del cambio de variable es (b − a)/2.' }) },
+    h5a: { w: 8, chk: s => checkExpr(s, e => 15 * e.tol, { vars: ['tol'], pts: PTTOL, miss: 'El criterio compara |S2 − S1| con 15 veces la tolerancia (15 = 2⁴ − 1).' }) },
+    h5b: { w: 12, chk: s => checkExpr(s, e => (e.S2 - e.S1) / 15, { vars: ['S1', 'S2'], pts: PTS, miss: 'La corrección de Richardson es (S2 − S1)/15.' }) },
+    h6a: { w: 4, chk: s => { const n = Number(String(s).trim()); if (!Number.isInteger(n) || n < 2) return { ok: false, msg: 'Escribe un número entero de nodos.' }; if (n === 5) return { ok: true };
+      if (!GL[n]) return { ok: false, msg: 'Revisa la tabla de Gauss: hay un número de nodos más pequeño que cumple.' };
+      const e = Math.abs(gaussJS(fL, 1, 3, n) - EX_L); return { ok: false, msg: e >= 1e-6 ? `Con n = ${n} el error es ${sci(e)}, todavía mayor que 10⁻⁶.` : `Con n = ${n} sí se cumple, pero hay uno más pequeño.` }; } }
+  },
+  N2: [
+    { id: 'h1', tag: '1 · f(x)', holes: ['h1a'], titulo: 'Paso 1 · La función', enun: 'Escribe <span class="mat">f(x) = ln x</span> en Python.', pista: 'El logaritmo natural de NumPy es np.log.' },
+    { id: 'h2', tag: '2 · Romberg', holes: ['h2a'], titulo: 'Paso 2 · Extrapolación de Romberg', enun: 'Completa la corrección que se suma a <span class="mat">R[k, j−1]</span>, usando <span class="mat">d</span> y <span class="mat">j</span>.', pista: 'R[k, j] = R[k, j−1] + d / (4ʲ − 1). La potencia en Python es **.' },
+    { id: 'h3', tag: '3 · Nodos', holes: ['h3a'], titulo: 'Paso 3 · Gauss: trasladar los nodos', enun: 'Escribe la fórmula que lleva los nodos <span class="mat">t ∈ [−1, 1]</span> al intervalo <span class="mat">[a, b]</span>.', pista: 'x = [(b − a)·t + (b + a)] / 2. Comprueba: con t = −1 sale a; con t = 1 sale b.' },
+    { id: 'h4', tag: '4 · Factor', holes: ['h4a'], titulo: 'Paso 4 · Gauss: el factor', enun: 'Escribe el factor que multiplica la suma <span class="mat">Σ cᵢ f(xᵢ)</span>.', pista: 'Es dx/dt en el cambio de variable.' },
+    { id: 'h5', tag: '5 · Adaptativa', holes: ['h5a', 'h5b'], titulo: 'Paso 5 · Criterio adaptativo', enun: 'Escribe el umbral de aceptación y la corrección que se suma a <span class="mat">S2</span>.', pista: 'Se acepta si |S2 − S1| &lt; 15·tol, y se devuelve S2 + (S2 − S1)/15.' },
+    { id: 'h6', tag: '6 · Elegir n', holes: ['h6a'], titulo: 'Paso 6 · ¿Cuántos nodos de Gauss?', enun: 'Con la tabla de la derecha, escribe el <b>menor número de nodos</b> de Gauss que logra un error menor que <span class="mat">10⁻⁶</span>.', pista: 'Busca el primer error por debajo de 1.0e-6 en la tabla de Gauss.' }
+  ],
+  TPL: [
+    ['import numpy as np'], [' '], ['f = lambda x: ', { h: 'h1a' }], [' '],
+    ['def romberg(f, a, b, M=5):'], ['    R = np.zeros((M, M))'], ['    h = b - a'], ['    R[0, 0] = 0.5 * h * (f(a) + f(b))'], ['    for k in range(1, M):'],
+    ['        i = np.arange(1, 2**(k-1) + 1)'], ['        R[k, 0] = 0.5 * (R[k-1, 0] + h * np.sum(f(a + (i - 0.5) * h)))'], ['        h = h / 2'],
+    ['        for j in range(1, k + 1):'], ['            d = R[k, j-1] - R[k-1, j-1]'], ['            R[k, j] = R[k, j-1] + ', { h: 'h2a' }], ['    return R'], [' '],
+    ['def gauss_legendre(f, a, b, n):'], ['    t, c = np.polynomial.legendre.leggauss(n)'], ['    x = ', { h: 'h3a' }], ['    return ', { h: 'h4a' }, ' * np.dot(c, f(x))'], [' '],
+    ['def _simpson(f, a, b):'], ['    h = (b - a) / 2'], ['    return h / 3 * (f(a) + 4*f(a + h) + f(b))'], [' '],
+    ['def adaptativa(f, a, b, tol=1e-6, nivel=0):'], ['    c = 0.5 * (a + b)'], ['    S1 = _simpson(f, a, b)'], ['    S2 = _simpson(f, a, c) + _simpson(f, c, b)'],
+    ['    if abs(S2 - S1) < ', { h: 'h5a' }, ' or nivel >= 50:'], ['        return S2 + ', { h: 'h5b' }],
+    ['    return adaptativa(f, a, c, tol/2, nivel+1) + adaptativa(f, c, b, tol/2, nivel+1)'], [' '],
+    ['print(romberg(f, 1, 3)[4, 4])'], ['print(gauss_legendre(f, 1, 3, ', { h: 'h6a' }, '))'], ['print(adaptativa(f, 1, 3))']
+  ],
+  n2done: 'Con ∫₁³ ln x dx: Romberg R₅,₅ tiene error 3.8×10⁻⁸ con 17 evaluaciones, Gauss con 5 nodos llega a 5.4×10⁻⁷ con solo 5, y la adaptativa controla el error por sí sola. Copia el script y ejecútalo en Colab.',
+  colabMsg: 'Script copiado. Pégalo en Colab: debe imprimir ≈ 1.2958368 (Romberg), 1.2958374 (Gauss, n = 5) y ≈ 1.2958369 (adaptativa).',
+  n2right(R) {
+    R.innerHTML = `<div class="plot"><svg id="q1"></svg><div class="plotcap" id="qc"></div></div><div id="qi"></div>`;
+    const P = mkPlot($('#q1'), { W: 420, H: 240, xmin: 0.9, xmax: 3.1, ymin: -0.1, ymax: 1.2, xt: [1, 1.5, 2, 2.5, 3], yt: [0, 0.5, 1], xl: 'x', yl: 'f(x)' });
+    const cap = $('#qc'), info = $('#qi');
+    if (ok('h1')) {
+      let d = `M${P.X(1)},${P.Y(0)}`; for (let i = 0; i <= 100; i++) { const x = 1 + 2 * i / 100; d += `L${P.X(x)},${P.Y(fL(x))}`; } d += `L${P.X(3)},${P.Y(0)}Z`;
+      el('path', { d, fill: 'var(--accentSoft)', stroke: 'none' }, P.layer); curve(P, fL, 0.9, 3.1, 's0');
+      if (ok('h4')) GL[3].forEach(([t]) => { const x = t + 2; el('circle', { cx: P.X(x), cy: P.Y(fL(x)), r: 4.5, class: 'ptr' }, P.layer); });
+      cap.innerHTML = '<span><i style="background:var(--c0)"></i>f(x) = ln x</span>' + (ok('h4') ? '<span>● nodos de Gauss, n = 3</span>' : '');
+    } else cap.textContent = 'Escribe f(x) para ver la gráfica.';
+    if (ok('h2')) info.innerHTML += `<div class="box"><h3>romberg(f, 1, 3) · exacto ${EX_L.toFixed(7)}</h3><div class="in">${romTable(rombergJS(fL, 1, 3, 5), EX_L)}</div></div>`;
+    if (ok('h4')) {
+      const rows = [2, 3, 4, 5, 6].map(n => { const v = gaussJS(fL, 1, 3, n), e = Math.abs(v - EX_L); return [n, fmt(v, 8), ok('h6') && e < 1e-6 ? '<b style="color:var(--green)">' + sci(e) + '</b>' : sci(e)]; });
+      info.insertAdjacentHTML('beforeend', `<div class="box"><h3>gauss_legendre(f, 1, 3, n)</h3><div class="in">${table(['nodos', 'Gauss', 'Error'], rows)}</div></div>`);
+    }
+    if (ok('h5')) {
+      const segs = []; const v = adaptJS(fL, 1, 3, 1e-6, 0, segs);
+      info.insertAdjacentHTML('beforeend', `<div class="box"><h3>adaptativa(f, 1, 3, tol = 1e-6)</h3><div class="in"><p class="mat">${fmt(v, 8)} · error ${sci(Math.abs(v - EX_L))} · ${segs.length} subintervalos</p><p class="small">Los subintervalos más finos quedan cerca de x = 1, donde ln x se curva más.</p></div></div>`);
+      const g = el('g', {}, P.layer); segs.forEach(([a]) => el('line', { x1: P.X(a), x2: P.X(a), y1: P.Y(-0.1), y2: P.Y(0.06), stroke: 'var(--c1)', 'stroke-width': 1.5 }, g));
+    }
+  },
+  /* ---------- Nivel 3 ---------- */
+  n3: {
+    ids: ['r1', 'r2', 'r3', 'r4'],
+    render(m) {
+      const ids = LAB.n3.ids; const cur = ids.find(id => !ok(id));
+      m.innerHTML = `<div class="secthead"><h2>Nivel 3 · Reto: distancia con datos de un sensor</h2><span class="ref">v(t) medida cada 2 s durante 10 s · n = 5 subintervalos</span></div>
+      ${stepsBar(ids, ['1 · Decide', '2 · Tramo 3/8', '3 · Tramo 1/3', '4 · Total'])}<div class="panel"><div id="L"></div><div id="R"></div></div>`;
+      const Lp = $('#L'), R = $('#R');
+      Lp.innerHTML = `<div class="box"><h3>Datos y salida</h3><div class="in">${table(['t (s)', '0', '2', '4', '6', '8', '10'], [['v (m/s)'].concat(V.map(String))])}
+        <div class="code" style="margin-top:8px"><div class="ln">d = cuadratura(v, 0, 10, 5, "simpson")</div><div class="ln" style="color:var(--red)">ValueError: Simpson exige n par</div></div></div></div>`;
+      const q = document.createElement('div'); q.className = 'box ' + (cur ? 'q' : 'done'); Lp.appendChild(q);
+      const A = {
+        r1: () => mcBlock(q, 'r1', 'Paso 1 · ¿Qué hacer?', 'Solo tienes estas seis mediciones. ¿Cuál es la mejor forma de integrar con exactitud de orden Simpson?', [
+          { t: 'Aplicar Simpson 3/8 en los primeros 3 subintervalos [0, 6] y Simpson 1/3 en los 2 restantes [6, 10].', ok: true },
+          { t: 'Usar Gauss con 5 nodos.', fb: 'Gauss necesita evaluar v en nodos específicos (raíces de Legendre). Con datos tabulados no puedes medir donde quieras.' },
+          { t: 'Usar Romberg.', fb: 'Romberg necesita evaluar f en puntos medios nuevos en cada nivel; con datos fijos cada 2 s no es posible.' },
+          { t: 'Borrar la última medición para que n quede par.', fb: 'Así solo integrarías 8 de los 10 segundos y perderías información.' }]),
+        r2: () => numBlock(q, 'r2', 'Paso 2 · Tramo [0, 6] con Simpson 3/8', 'Calcula <span class="mat">(3h/8)·[v₀ + 3v₁ + 3v₂ + v₃]</span> con <span class="mat">h = 2</span>. Escribe el resultado en metros.', '0.0',
+          s => checkNum(s, 40.8, 0.01, [{ v: 54.4, msg: 'Esa es solo la suma con pesos; falta multiplicar por 3h/8 = 0.75.' }]), 'v₀ + 3v₁ + 3v₂ + v₃ = 0 + 14.4 + 27.3 + 12.7.'),
+        r3: () => numBlock(q, 'r3', 'Paso 3 · Tramo [6, 10] con Simpson 1/3', 'Calcula <span class="mat">(h/3)·[v₃ + 4v₄ + v₅]</span> con <span class="mat">h = 2</span>.', '0.0',
+          s => checkNum(s, 62.0, 0.01, [{ v: 93, msg: 'Esa es la suma con pesos; falta multiplicar por h/3 = 2/3.' }]), 'v₃ + 4v₄ + v₅ = 12.7 + 62.4 + 17.9.'),
+        r4: () => numBlock(q, 'r4', 'Paso 4 · Distancia total', 'Suma los dos tramos. ¿Qué distancia recorrió el vehículo en los 10 s?', '0.0',
+          s => checkNum(s, 102.8, 0.01, [{ v: 102.3, msg: 'Ese es el resultado del trapecio. Suma tus dos tramos de Simpson.' }]))
+      };
+      if (cur) A[cur]();
+      else { q.innerHTML = `<h3>Reto completado</h3><div class="in"><p>Distancia ≈ 102.8 m con 3/8 + 1/3, frente a 102.3 m del trapecio. Con datos tabulados, Romberg, Gauss y la adaptativa no se pueden aplicar: necesitan evaluar la función donde ellos deciden. La combinación 3/8 + 1/3 resuelve el caso de n impar.</p><div class="row"><button class="btn pri" id="bC">Ver constancia</button></div></div>`; $('#bC').onclick = () => go('cons'); }
+      R.innerHTML = `<div class="plot"><svg id="v1"></svg><div class="plotcap"><span><i style="background:var(--c1)"></i>Simpson 3/8 [0, 6]</span><span><i style="background:var(--c2)"></i>Simpson 1/3 [6, 10]</span></div></div>`;
+      const P = mkPlot($('#v1'), { W: 420, H: 280, xmin: -0.3, xmax: 10.3, ymin: -1, ymax: 20, xt: [0, 2, 4, 6, 8, 10], yt: [0, 5, 10, 15, 20], xl: 't (s)', yl: 'v (m/s)' });
+      const lag = (xs, ys) => x => xs.reduce((s, xi, i) => s + ys[i] * xs.reduce((p, xj, j) => j === i ? p : p * (x - xj) / (xi - xj), 1), 0);
+      const c1 = lag([0, 2, 4, 6], V.slice(0, 4)), c2 = lag([6, 8, 10], V.slice(3));
+      const area = (f, a, b, col) => { let d = `M${P.X(a)},${P.Y(0)}`; for (let i = 0; i <= 60; i++) { const x = a + (b - a) * i / 60; d += `L${P.X(x)},${P.Y(f(x))}`; } d += `L${P.X(b)},${P.Y(0)}Z`; el('path', { d, fill: col, stroke: 'none', opacity: .25 }, P.layer); };
+      if (ok('r1')) { area(c1, 0, 6, 'var(--c1)'); area(c2, 6, 10, 'var(--c2)'); curve(P, c1, 0, 6, 's1'); curve(P, c2, 6, 10, 's2'); }
+      V.forEach((v, i) => el('circle', { cx: P.X(2 * i), cy: P.Y(v), r: 4.5, class: 'pt' }, P.layer));
+    }
+  },
+  LEVELS: [{ t: 'Nivel 1 · Rompecabezas (Romberg y Gauss-Legendre)', ids: ['p1', 'p2', 'p3'] },
+    { t: 'Nivel 2 · Completa el código (∫₁³ ln x dx)', ids: ['h1', 'h2', 'h3', 'h4', 'h5', 'h6'] },
+    { t: 'Nivel 3 · Reto: datos con n impar (opcional)', ids: ['r1', 'r2', 'r3', 'r4'] }],
+  resultLine: () => `∫₁³ ln x dx:  Romberg R₅,₅ = ${fmt(rombergJS(fL, 1, 3, 5)[4][4], 7)}   ·   Gauss n = 5: ${fmt(gaussJS(fL, 1, 3, 5), 7)}   ·   exacto ${fmt(EX_L, 7)}`
+};
+</script>
+<script src="../assets/motor.js"></script>
+</body>
+</html>

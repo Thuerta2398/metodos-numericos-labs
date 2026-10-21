@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Verificador de constancias</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fira+Sans:wght@400;500;600;700&family=Fira+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="../assets/lab.css">
+<style>
+  .res{margin-top:14px}
+  table.kv{border-collapse:collapse;width:100%;font-size:14px}
+  table.kv td{padding:6px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+  table.kv td:first-child{color:var(--muted);width:42%}
+  .big{font-size:18px;font-weight:600;padding:10px 12px;border-radius:6px;margin-bottom:10px}
+  .big.ok{background:var(--greenSoft);color:var(--green)} .big.no{background:var(--redSoft);color:var(--red)}
+</style>
+</head>
+<body>
+<header><div class="hwrap">
+  <div class="eyebrow">TecNM Campus Ensenada · Métodos Numéricos SCC-1017 · Uso docente</div>
+  <h1>Verificador de constancias de laboratorio</h1><div class="rule"></div><div style="height:12px"></div>
+</div></header>
+<main>
+  <p class="lead">Pega el código de verificación que el estudiante copió en su entrega (empieza con <span class="mat">MN4|</span>). El verificador recalcula el folio: si alguien modificó el nombre, los intentos o el registro de integridad, el folio deja de coincidir. Compara además el folio con el que aparece en la imagen PNG.</p>
+  <div class="box"><h3>Código de verificación</h3><div class="in">
+    <textarea class="codev" id="code" rows="3" placeholder="MN4|U4S1|Nombre|Control|…|XXXX-XXXX-XXXX" spellcheck="false"></textarea>
+    <div class="row"><button class="btn pri" id="bV">Verificar</button><button class="btn" id="bX">Limpiar</button></div>
+    <div class="res" id="res"></div>
+  </div></div>
+  <div class="box"><h3>Cómo leer el registro de integridad</h3><div class="in">
+    <p class="small"><b>Salidas:</b> veces que la ventana perdió el foco más de 0.8 s (cambio de pestaña, de aplicación o herramienta de recorte). Más de 4 marca la constancia CON INCIDENCIAS. <b>Pegados bloqueados:</b> intentos de pegar más de 5 caracteres. <b>Capturas:</b> tecla Impr Pant o atajos de captura detectados (en Mac y celulares el sistema no lo informa; ahí suele aparecer como salida). <b>Reinicios:</b> veces que el estudiante borró su avance; el registro de integridad se conserva.</p>
+  </div></div>
+</main>
+<script src="../assets/integridad.js"></script>
+<script>
+"use strict";
+const LABS = { U4S1: 'Unidad 4 · Sesión 1 (derivación y Newton-Cotes)', U4S2: 'Unidad 4 · Sesión 2 (Romberg, Gauss, adaptativa)' };
+const NIV = ['Nivel 1 (3 etapas)', 'Nivel 2 (6 pasos)', 'Nivel 3 (4 pasos)'];
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const $ = q => document.querySelector(q);
+function fecha(ms) { return new Date(ms).toLocaleString('es-MX'); }
+$('#bV').onclick = () => {
+  const r = INTEG.leerCodigo($('#code').value); const out = $('#res');
+  if (!r.ok) { out.innerHTML = `<div class="big no">${esc(r.msg)}</div>`; return; }
+  const I = r.integ; const tot = [3, 6, 4];
+  out.innerHTML = `<div class="big ${r.valido ? 'ok' : 'no'}">${r.valido ? '✔ Folio válido: ' + esc(r.folio) : '✘ Folio NO válido: el código fue modificado'}</div>
+  ${r.valido ? `<p><span class="stamp ${r.incidencias ? 'no' : 'ok'}">${r.incidencias ? 'CON INCIDENCIAS · ' + I.salidas + ' salidas' : 'SIN INCIDENCIAS'}</span></p>` : ''}
+  <table class="kv">
+    <tr><td>Laboratorio</td><td>${esc(LABS[r.lab] || r.lab)}</td></tr>
+    <tr><td>Estudiante</td><td><b>${esc(r.nombre)}</b></td></tr>
+    <tr><td>Número de control</td><td>${esc(r.control)}</td></tr>
+    <tr><td>Inicio · última etapa</td><td>${fecha(r.inicio)} · ${fecha(r.fin)} (${INTEG.fmtSeg((r.fin - r.inicio) / 1000)})</td></tr>
+    ${r.niveles.map((n, i) => `<tr><td>${NIV[i]}</td><td>${n.n} de ${tot[i]} completados · ${n.f} intentos fallidos · ${n.p} pistas</td></tr>`).join('')}
+    <tr><td>Salidas de la ventana</td><td><b style="color:${r.incidencias ? 'var(--red)' : 'inherit'}">${I.salidas}</b> (tiempo fuera: ${INTEG.fmtSeg(I.fuera)})</td></tr>
+    <tr><td>Pegados bloqueados</td><td>${I.pegados}</td></tr>
+    <tr><td>Intentos de captura</td><td>${I.capturas}</td></tr>
+    <tr><td>Reinicios</td><td>${I.reinicios}</td></tr>
+  </table>`;
+};
+$('#bX').onclick = () => { $('#code').value = ''; $('#res').innerHTML = ''; };
+</script>
+</body>
+</html>
