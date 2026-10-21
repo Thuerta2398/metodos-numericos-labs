@@ -2,12 +2,12 @@
 
 TecNM Campus Ensenada · Ingeniería en Sistemas Computacionales · Dr. T. Huerta
 
-Sitio estático publicado con GitHub Pages: **https://thuerta2398.github.io/metodos-numericos-labs/**
+Página de inicio (enlaces a cada sesión) y verificador común, publicados con GitHub Pages: **https://thuerta2398.github.io/metodos-numericos-labs/**
 
 | Ruta | Contenido |
 |---|---|
-| `sesion1/` | Unidad 4, Sesión 1: derivada centrada, Richardson, trapecio y Simpson 1/3 |
-| `sesion2/` | Unidad 4, Sesión 2: Romberg, Gauss-Legendre, cuadratura adaptativa y Simpson 3/8 + 1/3 con datos |
+| `sesion1/` | Redirige al sitio independiente https://thuerta2398.github.io/mn-u4-sesion1/ |
+| `sesion2/` | Redirige al sitio independiente https://thuerta2398.github.io/mn-u4-sesion2/ |
 | `verificar/` | Verificador de constancias (uso docente) |
 | `assets/integridad.js` | Registro de integridad, código de verificación y folio |
 | `assets/motor.js` | Motor común: rompecabezas de Parsons, completar código, constancia PNG |
@@ -25,4 +25,4 @@ El folio y el código de verificación incluyen nombre, número de control, tiem
 
 ## Para agregar un laboratorio
 
-Copiar `sesion1/index.html`, cambiar `window.LAB` (clave de almacenamiento, `labId`, etapas, huecos y reto) y agregar el `labId` al diccionario `LABS` de `verificar/index.html`.
+Cada sesión vive en su propio repositorio (`mn-u4-sesion1`, `mn-u4-sesion2`) como un solo `index.html` autocontenido. Para una nueva: copiar ese repositorio, cambiar `window.LAB` (clave de almacenamiento, `labId`, etapas, huecos y reto) y agregar el `labId` al diccionario `LABS` de `verificar/index.html`.
